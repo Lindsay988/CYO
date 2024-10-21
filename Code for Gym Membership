@@ -1,0 +1,221 @@
+# ==============================
+# Gym Member Segmentation Project
+# ==============================
+
+# ------------------------------
+# 1. Setup and Package Installation
+# ------------------------------
+
+# Function to check and install missing packages
+install_if_missing <- function(packages) {
+  for(package in packages){
+    if(!require(package, character.only = TRUE)){
+      install.packages(package, dependencies = TRUE)
+      library(package, character.only = TRUE)
+    }
+  }
+}
+
+# List of required packages
+required_packages <- c("tidyverse", "cluster", "factoextra", "ggplot2", "dplyr")
+
+# Install and load required packages
+install_if_missing(required_packages)
+
+# Load the gym member dataset
+
+
+dataset <- read_csv("C:/Users/linds/Downloads/archive (1).zip")
+
+# View the first few rows of the dataset to understand its structure
+head(dataset)
+
+# ------------------------------
+# Step 1: Data Preprocessing
+# ------------------------------
+
+
+# 1.1 Handle Missing Data
+# Replace missing values with the mean of the column (if any).
+dataset_clean <- dataset %>% 
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# 1.2 Normalize the numeric columns (scale features to have zero mean and unit variance)
+numeric_cols <- c("Age", "Weight (kg)", "Height (m)", "Max_BPM", "Avg_BPM", "Resting_BPM", "Session_Duration (hours)", "Calories_Burned", "Fat_Percentage", "Water_Intake (liters)", "BMI")
+dataset_clean[numeric_cols] <- scale(dataset_clean[numeric_cols])
+
+
+# ------------------------------
+# Step 2: K-Means Clustering
+# ------------------------------
+
+
+
+# 2.1 Determine the optimal number of clusters using the Elbow Method
+set.seed(123) # For reproducibility
+
+fviz_nbclust(dataset_clean[numeric_cols], kmeans, method = "wss") +
+  ggtitle("Elbow Method for Finding Optimal Clusters") +
+  theme_minimal()
+
+# 2.2 Apply K-Means Clustering with the chosen number of clusters (e.g., k = 3)
+set.seed(123)
+k <- 3  # Based on the elbow method
+kmeans_result <- kmeans(dataset_clean[numeric_cols], centers = k, nstart = 25)
+
+# Add the cluster assignment to the dataset
+dataset_clean$Cluster <- as.factor(kmeans_result$cluster)
+
+
+# ------------------------------
+# Step 3: Visualize the Clustering Results
+# ------------------------------
+
+
+# 3.1 Visualize the clusters in 2D space using the first two principal components (PCA)
+pca_result <- prcomp(dataset_clean[numeric_cols], scale. = TRUE)
+fviz_pca_ind(pca_result, geom.ind = "point", habillage = dataset_clean$Cluster, 
+             addEllipses = TRUE, palette = "jco") +
+  ggtitle("PCA - Gym Member Clusters") +
+  theme_minimal()
+
+# 3.2 Visualize the clusters with a pair plot
+pairs(dataset_clean[numeric_cols], col = dataset_clean$Cluster)
+
+
+# ------------------------------
+# Step 4: Analyze Clustering Results
+# ------------------------------
+
+
+
+# 4.1 Summarize the characteristics of each cluster
+cluster_summary <- dataset_clean %>%
+  group_by(Cluster) %>%
+  summarise(
+    Avg_Age = mean(Age, na.rm = TRUE),
+    Avg_Weight = mean(`Weight (kg)`, na.rm = TRUE),
+    Avg_Height = mean(`Height (m)`, na.rm = TRUE),
+    Avg_Max_BPM = mean(Max_BPM, na.rm = TRUE),
+    Avg_Session_Duration = mean(`Session_Duration (hours)`, na.rm = TRUE),
+    Avg_Calories_Burned = mean(Calories_Burned, na.rm = TRUE),
+    Avg_Fat_Percentage = mean(Fat_Percentage, na.rm = TRUE),
+    Avg_BMI = mean(BMI, na.rm = TRUE)
+  )
+
+# Display the cluster summary
+print(cluster_summary)
+
+
+# ------------------------------
+# Step 5: Dimensionality Reduction Using PCA
+# ------------------------------
+
+
+# 5.1 Visualize the explained variance by each principal component
+fviz_eig(pca_result) + 
+  ggtitle("Variance Explained by Principal Components") +
+  theme_minimal()
+
+# 5.2 Show the contribution of variables to the first two principal components
+fviz_pca_var(pca_result, col.var = "contrib") +
+  scale_color_gradient2(low = "blue", mid = "yellow", high = "red", midpoint = 50) +
+  ggtitle("Variable Contributions to PCA") +
+  theme_minimal()
+
+# ------------------------------
+# Step 6: Insights and Interpretation
+# ------------------------------
+
+
+# Step 6.1: Summarize the characteristics of each cluster
+
+# Summarize the characteristics of each cluster
+cluster_summary <- dataset_clean %>%
+  group_by(Cluster) %>%
+  summarise(
+    Avg_Age = mean(Age, na.rm = TRUE),
+    Avg_Weight = mean(`Weight (kg)`, na.rm = TRUE),
+    Avg_Height = mean(`Height (m)`, na.rm = TRUE),
+    Avg_Max_BPM = mean(Max_BPM, na.rm = TRUE),
+    Avg_Session_Duration = mean(`Session_Duration (hours)`, na.rm = TRUE),
+    Avg_Calories_Burned = mean(Calories_Burned, na.rm = TRUE),
+    Avg_Fat_Percentage = mean(Fat_Percentage, na.rm = TRUE),
+    Avg_BMI = mean(BMI, na.rm = TRUE)
+  )
+
+# Display the cluster summary
+print(cluster_summary)
+
+# Step 6.2: Visualize Clusters in PCA Plot
+
+# Visualize the clusters in 2D space using the first two principal components (PCA)
+fviz_pca_ind(pca_result, geom.ind = "point", habillage = dataset_clean$Cluster, 
+             addEllipses = TRUE, palette = "jco") +
+  ggtitle("PCA - Gym Member Clusters") +
+  theme_minimal()
+
+# Step 6.3: Analyze Principal Components and Their Contributions
+
+# Visualize the explained variance by each principal component
+fviz_eig(pca_result) + 
+  ggtitle("Variance Explained by Principal Components") +
+  theme_minimal()
+
+# Show the contribution of variables to the first two principal components
+fviz_pca_var(pca_result, col.var = "contrib") +
+  scale_color_gradient2(low = "blue", mid = "yellow", high = "red", midpoint = 50) +
+  ggtitle("Variable Contributions to PCA") +
+  theme_minimal()
+
+# Step 6.4: Derive Insights
+
+# Example interpretation:
+# - Based on cluster_summary, you can make conclusions about each group.
+# - E.g., Cluster 1 might have younger, high-intensity members who burn a lot of calories,
+# while Cluster 2 might have more experienced members with lower body fat and balanced workouts.
+print("Interpret the clusters based on the summary and PCA visualizations to gain insights into gym member behavior.")
+
+
+# ------------------------------
+# Step 7: Tailor Gym Programs for Clusters
+# ------------------------------
+
+
+# Define a function to assign workout programs based on cluster characteristics
+assign_gym_program <- function(cluster) {
+  if (cluster == 1) {
+    return("High-Intensity Interval Training (HIIT) - Short and Intense")
+  } else if (cluster == 2) {
+    return("Endurance and Strength Training - Long Duration Workouts")
+  } else if (cluster == 3) {
+    return("Beginner-Friendly Cardio and Strength - Moderate Intensity")
+  } else {
+    return("General Fitness Program")
+  }
+}
+
+# Add a new column to dataset_clean that assigns a gym program based on the cluster
+dataset_clean$Recommended_Program <- sapply(dataset_clean$Cluster, assign_gym_program)
+
+# Step 7.1: View the tailored gym programs assigned to each member
+# Display the first few rows to check the assignment of programs
+head(dataset_clean[, c("Cluster", "Recommended_Program")])
+
+# Step 7.2: Summarize how many members are assigned to each program
+program_summary <- dataset_clean %>%
+  group_by(Recommended_Program) %>%
+  summarise(Members_Count = n())
+
+# Display the summary of members per gym program
+print("Summary of Gym Programs Assigned to Clusters:")
+print(program_summary)
+
+# Step 7.3: Optional - Visualize the distribution of recommended programs across clusters
+library(ggplot2)
+ggplot(dataset_clean, aes(x = Cluster, fill = Recommended_Program)) +
+  geom_bar() +
+  ggtitle("Distribution of Gym Programs Across Clusters") +
+  xlab("Cluster") +
+  ylab("Number of Members") +
+  theme_minimal()
